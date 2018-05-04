@@ -18,7 +18,55 @@ static int						cfg_sock_buffer = 1048576;
 static int						cfg_net_maxlen = 10240;
 static int						cfg_net_buffer = 32768;
 static int						cfg_net_queue = 1818;
+struct nfq_data {
+        struct nfattr **data;
+};
+
 /*--------------------------------------------------------------------------*/
+static int nfq_get_ct_info(struct nfq_data *nfad, unsigned char **data)
+{
+    *data = (unsigned char *)
+        nfnl_get_pointer_to_data(nfad->data, NFQA_CT, struct nf_conntrack );
+
+    if (*data)
+        return NFA_PAYLOAD(nfad->data[NFQA_CT-1]);
+
+
+    printf("nfnl_get_pointer_to_data(NFQA_CT) returned NULL\n" );
+    return -1;
+}
+
+static unsigned int nfq_get_conntrack_id(struct nfq_data *nfad, int l3num)
+{
+    struct nf_conntrack *ct;
+    int ct_len =0;
+    unsigned char *ct_data;
+    unsigned int id;
+
+    ct_len = nfq_get_ct_info(nfad, &ct_data);
+    if ( ct_len <= 0 ) {
+        printf( "nfq_get_ct_info returned error.\n" );
+        return 0;
+    }
+
+    ct = nfct_new();
+    if ( !ct ) {
+        printf("nfct_new failed\n" );
+        return 0;
+    }
+
+    if (nfct_payload_parse((void *)ct_data, ct_len, l3num, ct ) < 0) {
+        nfct_destroy( ct );
+        printf("nfq_payload_parse returned error.\n" );
+        return 0;
+    }
+
+    id = nfct_get_attr_u32(ct,ATTR_ID);
+
+    nfct_destroy( ct );
+    return id;
+}
+
 static int netq_callback(struct nfq_q_handle *qh,struct nfgenmsg *nfmsg,struct nfq_data *nfad,void *data)
 {
 struct nfqnl_msg_packet_hdr		*hdr;
@@ -26,6 +74,7 @@ unsigned char					*rawpkt;
 struct iphdr					*iphead;
 int								rawlen;
 int								omark,nmark;
+unsigned int id;
 
 // get the packet header and mark
 hdr = nfq_get_msg_packet_hdr(nfad);
@@ -50,6 +99,9 @@ if (iphead->version != 4) return(0);
 
 // we only care about TCP and UDP
 if ((iphead->protocol != IPPROTO_TCP) && (iphead->protocol != IPPROTO_UDP)) return(0);
+
+// get the conntrack id
+id = nfq_get_conntrack_id(nfad, nfmsg->nfgen_family);
 
 // call the go handler function
 nmark = go_netfilter_callback(omark,rawpkt,rawlen);
@@ -122,6 +174,15 @@ ret = nfq_set_mode(nfqqh,NFQNL_COPY_PACKET,cfg_net_buffer);
 	logmessage(LOG_ERR,"Error returned from nfq_set_mode(NFQNL_COPY_PACKET)\n");
 	g_shutdown = 1;
 	return(6);
+	}
+
+ret = nfq_set_queue_flags(nfqqh, NFQA_CFG_F_CONNTRACK,  NFQA_CFG_F_CONNTRACK);
+
+	if (ret < 0)
+	{
+	logmessage(LOG_ERR,"Error returned from nfq_set_queue_flags(NFQA_CFG_F_CONNTRACK)\n");
+	g_shutdown = 1;
+	return(7);
 	}
 
 return(0);
