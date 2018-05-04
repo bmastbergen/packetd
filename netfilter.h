@@ -8,7 +8,7 @@
  */
 
 /*--------------------------------------------------------------------------*/
-extern int go_netfilter_callback(int mark,unsigned char* data, int len);
+extern int go_netfilter_callback(int mark,unsigned char* data, int len, unsigned int conn_id);
 extern void go_child_startup(void);
 extern void go_child_goodbye(void);
 /*--------------------------------------------------------------------------*/
@@ -104,7 +104,7 @@ if ((iphead->protocol != IPPROTO_TCP) && (iphead->protocol != IPPROTO_UDP)) retu
 id = nfq_get_conntrack_id(nfad, nfmsg->nfgen_family);
 
 // call the go handler function
-nmark = go_netfilter_callback(omark,rawpkt,rawlen);
+nmark = go_netfilter_callback(omark,rawpkt,rawlen,id);
 
 // set the verdict and the returned mark
 nfq_set_verdict2(qh,(hdr ? ntohl(hdr->packet_id) : 0),NF_ACCEPT,nmark,0,NULL);

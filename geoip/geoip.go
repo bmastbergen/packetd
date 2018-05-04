@@ -30,7 +30,7 @@ func Plugin_Goodbye(childsync *sync.WaitGroup) {
 }
 
 /*---------------------------------------------------------------------------*/
-func Plugin_netfilter_handler(ch chan<- int32,buffer []byte, length int) {
+func Plugin_netfilter_handler(ch chan<- int32,buffer []byte, length int, conn_id uint) {
 	support.LogMessage("GEOIP RECEIVED %d BYTES\n",length)
 	packet := gopacket.NewPacket(buffer, layers.LayerTypeIPv4, gopacket.DecodeOptions{Lazy: true, NoCopy: true})
 	ipLayer := packet.Layer(layers.LayerTypeIPv4)

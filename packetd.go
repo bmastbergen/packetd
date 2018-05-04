@@ -196,7 +196,7 @@ func go_netfilter_callback(mark C.int, data *C.uchar, size C.int) int32 {
 	c2 := make(chan int32)
 	go classify.Plugin_netfilter_handler(c2, buffer, length)
 	c3 := make(chan int32)
-	go geoip.Plugin_netfilter_handler(c3, buffer, length)
+	go geoip.Plugin_netfilter_handler(c3, buffer, length, uint(C.uint(conn_id)))
 
 	// ********** End of plugin netfilter callback functions
 
