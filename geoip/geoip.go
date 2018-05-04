@@ -1,6 +1,8 @@
 package geoip
 
+import "fmt"
 import "sync"
+import "github.com/untangle/packetd/conndict"
 import "github.com/untangle/packetd/support"
 import "github.com/oschwald/geoip2-golang"
 import "github.com/google/gopacket"
@@ -48,6 +50,26 @@ func Plugin_netfilter_handler(ch chan<- int32,buffer []byte, length int, conn_id
 		}
 		support.LogMessage("SRC: %s = %s\n",addr.SrcIP,SrcCode)
 		support.LogMessage("DST: %s = %s\n",addr.DstIP,DstCode)
+
+		if SrcCode == "" {
+			err = conndict.Set_pair("Client Country", "XX", conn_id)
+		} else {
+			err = conndict.Set_pair("Client Country", SrcCode, conn_id)
+		}
+
+		if (err != nil) {
+			fmt.Println(err)
+		}
+
+		if DstCode == "" {
+			err = conndict.Set_pair("Server Country", "XX", conn_id)
+		} else {
+			err = conndict.Set_pair("Server Country", DstCode, conn_id)
+		}
+
+		if (err != nil) {
+			fmt.Println(err)
+		}
 	}
 
 	// TODO - store the country values in the session object
